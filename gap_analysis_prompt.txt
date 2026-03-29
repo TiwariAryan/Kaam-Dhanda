@@ -1,0 +1,8 @@
+Go through the report "C:\Users\tiwaary\OneDrive - MSCI Office 365\WORLD Re-work\Collection Gap Analysis\Whitbread_PLC_Gap_Analysis.docx" and try to extract all the missing assets for WHITBREAD PLC. (Assets mentioned in "2. Missing Assets - Not collected" section)
+Domain: https://www.whitbread.co.uk/
+Sharing original extraction prompt for context and output structure:
+
+"Extract addresses from given domain and related URLs, give me in CSV ISSUER_ID , value for all rows Issuer ID - IID000000002129162,  ISSUER_NAME - WHITBREAD PLC for all rows and other columns being FACILITY_NAME FACILITY_ADDRESS CITY STATE POSTAL_CODE FACILITY_REGION LATITUDE LONGITUDE FACILITY_CONTACT_NUMBER RELEVANT_URL BUSINESS_ACTIVITY. Also in case of foreign language data, make sure to transliterate all values to English. 
+Expected count: 1500+
+
+Domain: https://www.whitbread.co.uk/"
