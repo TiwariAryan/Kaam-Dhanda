@@ -13,3 +13,262 @@ IID000000002141568	ASUSTEK COMPUTER INCORPORATION	1000	https://www.asus.com/in/m
 IID000000002141568	ASUSTEK COMPUTER INCORPORATION	2	https://www.asus.com/us/About_ASUS/Facilities-Branches/
 
 IID000000002921087	HAIDILAO INTERNATIONAL HOLDING LTD.	1300	https://www.haidilao.com/serve/storeSearch
+
+
+
+## Pre-Task Instructions: Extraction Memory & Methodology
+
+### THE MEMORY FOLDER
+
+The folder at the path below is a **persistent extraction memory store**. It survives across tasks and conversations. It contains a knowledge base document, reusable scripts, and approach records from all past extractions. **Everything you learn, build, and discover in this task must be preserved here for future use.**
+
+```
+"C:\Users\aryan\Downloads\Extraction Memory 28 Mar"
+```
+
+**Folder rules:**
+- **SAVE here**: The knowledge base (`extraction_approach_v2.md`), all useful/reusable extraction scripts, and any other resourceful files (e.g., country mapping CSVs, utility modules).
+- **DO NOT save here**: Intermediate files, test files, debug outputs, scratch scripts, temporary data, or any other disposable artifacts. These go in the working directory or `/tmp`, never in the memory folder.
+
+---
+
+### STEP 0 — MANDATORY: Read & Utilize the Knowledge Base
+
+Before doing ANY work, you MUST read the extraction knowledge base file:
+```
+{MEMORY_FOLDER}/extraction_approach_v2.md
+```
+
+**If this file exists:**
+1. Read it thoroughly.
+2. Identify which **platform pattern** (Section 3) matches the target site.
+3. Check if any **past extraction** (Section 4) used the same platform/technology — if so, **actively reuse that approach** and the referenced scripts. Do not reinvent what already works.
+4. Check the **existing scripts** listed in Section 9 and physically present in the memory folder. If a script for the matching platform pattern already exists, **use it directly** (with config changes) rather than writing a new one from scratch.
+5. Review the ❌ failures documented for similar sites/platforms — **do not repeat known failures**.
+6. **State explicitly** which pattern(s) you believe match the target site before writing any code.
+
+**If this file does NOT exist:**
+1. Create it from scratch after completing the extraction.
+2. Dump all your approaches, findings, what worked, what failed, thought process, and reusable code into it following the structure described in STEP 3.
+
+**Key sections in the knowledge base:**
+- **Section 1** — Decision tree for choosing an extraction approach
+- **Section 3** — Platform-specific reusable patterns (AEM, SingleInterface, ArcGIS, embedded JSON, static cards, sitemap crawl, contact pages, session-protected APIs)
+- **Section 4** — Per-issuer extraction records with ✅ what worked and ❌ what failed
+- **Section 5** — Reusable utility code (CJK handling, address parsing, progress saving, bracket-depth parsers)
+- **Section 9** — File inventory of all scripts in the memory folder
+
+---
+
+### STEP 1 — Script Design Philosophy: GENERALIZED, NOT SITE-SPECIFIC
+
+When writing extraction scripts, follow these mandatory design rules:
+
+#### A. Build for the Platform, Not the Page
+- **DO**: Write a scraper for "AEM Sling API branch locators" or "SingleInterface store locators" or "embedded `var info = [...]` JSON pages."
+- **DON'T**: Write a scraper hardcoded to one specific company's CSS classes, URL paths, or field names without parameterization.
+- **The goal**: Build an optimized, generic extraction approach that works with any URL using the same platform pattern.
+
+#### B. Parameterize Everything Company-Specific
+Structure every script with a clear **configuration block** at the top:
+```python
+# ═══════════════════════════════════════════════════════════
+# CONFIGURATION — Change these for each new issuer
+# ═══════════════════════════════════════════════════════════
+ISSUER_NAME    = "COMPANY NAME"
+ISSUER_ID      = "IID000000000000000"
+BASE_URL       = "https://www.example.com"
+LOCATION_PATH  = "/en/locations"           # Path to the locations page
+OUTPUT_DIR     = "company_output"
+
+# Platform-specific config (example for AEM Sling)
+STATE_CITY_API = "/api/getStateCityList"   # State/city list endpoint
+MAPS_BASE_PATH = "/content/.../maps"       # AEM maps component path
+BRANCH_TYPES   = [2]                       # Which types to include
+
+# ═══════════════════════════════════════════════════════════
+# GENERIC EXTRACTION LOGIC BELOW — Do not modify per-issuer
+# ═══════════════════════════════════════════════════════════
+```
+
+#### C. Reuse Existing Utility Functions
+Before writing any utility function, check if it already exists in the knowledge base (Section 5) or in existing scripts in the memory folder:
+- `strip_cjk()` — CJK character removal
+- `is_english_text()` — language detection
+- `is_person_name()` — contact person filtering
+- `extract_json_array()` — bracket-depth JSON parser
+- `parse_address(address, country)` — country-specific address parsing
+- `US_STATE_TO_ABBR` — US state name lookup
+- Progress saving pattern — for long-running extractions
+
+Import or copy these rather than reimplementing.
+
+#### D. Script Naming Convention
+Name scripts by **platform pattern**, not by company:
+- `aem_sling_branch_extractor.py` (not `kotak_branch_extractor.py`)
+- `singleinterface_store_extractor.py` (not `bajaj_nearme_extractor.py`)
+- `embedded_json_location_extractor.py` (not `esun_branch_extractor.py`)
+- `static_card_global_extractor.py` (not `chroma_global_extractor.py`)
+
+If the site uses a truly novel pattern, name it descriptively: `post_api_province_extractor.py`.
+
+#### E. Handle Edge Cases via Config, Not Code Forks
+If a site has quirks (e.g., a CSS class typo like `countyr_name`), handle it via configuration:
+```python
+# Site-specific CSS selector overrides (default to standard patterns)
+CARD_SELECTOR  = config.get("card_selector", "div.country_card")
+NAME_SELECTOR  = config.get("name_selector", "p.country_name")  # Override: "p.countyr_name"
+```
+
+#### F. Scripts Must Be Future-Readable and Self-Documenting
+Every script saved to the memory folder must be written so that a future agent (or human) can read it and immediately understand and reuse it:
+- **Module-level docstring** at the top explaining: what platform pattern this script handles, what sources it extracts from, how to configure it for a new issuer, and usage instructions.
+- **Inline comments** on any non-obvious logic (e.g., why a specific selector is used, why a particular timeout value was chosen).
+- **Example config** in the docstring showing how to adapt the script for a different company.
+- **No hardcoded secrets or paths** — API keys, output paths, and credentials should be loaded from environment variables or a config file, or at minimum be clearly marked in the config block.
+
+---
+
+### STEP 2 — Extraction Execution
+
+During extraction, follow the pipeline from the knowledge base (Section 2):
+
+1. **Reconnaissance**: Fetch raw HTML → analyze page size, structure, technology stack.
+2. **Pattern Match**: Use the decision tree (Section 1) to identify the platform.
+3. **Check Past Records**: Does Section 4 have an extraction record for a similar site/platform? If yes, reuse the approach and avoid the documented ❌ failures.
+4. **Data Discovery**: Find APIs, embedded JSON, structured data, hidden DOM content.
+5. **Extract**: Use the matching generalized script (or write one if no template exists).
+6. **Post-Process**: Clean, validate, geocode (if needed), export.
+
+**Progress Saving Rule**: If the extraction involves >50 iterations (cities, pages, branches), implement progress saving every 20 items. This is mandatory.
+
+**Timeout Rule**: For pages that might have no data, use a 4-second timeout (not 8s default). This reduces empty-page overhead by 50%.
+
+---
+
+### STEP 3 — MANDATORY: Save Everything Useful to the Memory Folder
+
+After completing the extraction, you MUST do two things: **(A)** save useful files, and **(B)** update the knowledge base. Both are mandatory.
+
+#### Part A: Save Useful Files to the Memory Folder
+
+**Save a copy of these files** to `{MEMORY_FOLDER}`:
+- Any generalized extraction script you created or significantly modified.
+- Any reusable utility module (e.g., address parsers, geocoding helpers).
+- Any valuable reference data (e.g., country mappings, state abbreviation tables).
+
+**DO NOT save** to the memory folder:
+- Intermediate/temporary files (raw HTML dumps, debug logs, test outputs).
+- One-off scratch scripts used for exploration.
+- Output CSV/XLSX data files (these belong in the issuer's working directory, not the memory folder).
+- Any file that has no value for future extractions.
+
+#### Part B: Update the Knowledge Base (Append-Only)
+
+Update `{MEMORY_FOLDER}/extraction_approach_v2.md` with **everything you learned** — every approach you took, every technique you tried, what worked and what didn't, and your thought process. Follow these **strict rules**:
+
+##### Rule 1: APPEND ONLY — Never Delete or Modify Existing Content
+- **DO**: Add new sections, append to existing lists, add new rows to tables.
+- **DON'T**: Delete, rewrite, or modify any existing text, even if you think it's wrong or outdated.
+- If something in the existing document is incorrect or outdated, add a correction note below it:
+  ```markdown
+  > [!NOTE]
+  > **Correction (YYYY-MM-DD):** The above approach no longer works because [reason].
+  > The updated approach is: [new approach].
+  ```
+
+##### Rule 2: Where to Append
+
+| What you learned | Where to add it |
+|-----------------|-----------------|
+| New issuer extraction | **Section 4**: Add a new `### 4.X COMPANY NAME (Mon YYYY)` subsection at the end |
+| New platform pattern discovered | **Section 3**: Add a new `### 3.X Platform Name` subsection at the end |
+| New reusable utility function | **Section 5**: Add a new `### 5.X Utility Name` subsection at the end |
+| New lesson / gotcha | **Section 10**: Append to the relevant list (Priority Rules, Time Wasters, Platform Detection) |
+| Script created/used | **Section 9**: Add a new row to the "Extraction Scripts" table |
+| Geocoding finding | **Section 6**: Append under the relevant subsection |
+| New country postal format | **Section 7.3**: Add a new row to the postal validation table |
+
+##### Rule 3: Format for New Issuer Sections
+
+Use this exact template when adding a new extraction record:
+
+```markdown
+### 4.X COMPANY NAME (Mon YYYY)
+
+| Source | URL | Records | Method | Script |
+|--------|-----|---------|--------|--------|
+| Source Name | example.com/locations | N | Method description | `script_name.py` |
+| **TOTAL** | | **N** | | |
+
+**Platform Pattern**: [Reference to Section 3.X]
+
+**Key Approach**: [1-2 sentence summary of what worked]
+
+**Approaches Tried** (chronological):
+1. First tried [approach] — [result: worked/failed because...]
+2. Then tried [approach] — [result: worked/failed because...]
+3. Final working approach: [description]
+
+**Key Learnings**:
+- ✅ [What worked and why]
+- ✅ [What worked and why]
+- ❌ [What failed and why — so future runs avoid it]
+- ❌ [What failed and why]
+
+**Script Config** (for reuse with the generalized script):
+```python
+ISSUER_NAME  = "COMPANY NAME"
+BASE_URL     = "https://..."
+# [key config params for the generalized script]
+```
+```
+
+##### Rule 4: Capture Your Full Thought Process
+Don't just record final results. Capture **how you got there**:
+- What did you notice when inspecting the page HTML/network requests?
+- Which approaches did you consider and why did you choose one over the other?
+- What assumptions turned out to be wrong?
+- What workarounds were needed and why?
+
+This "approaches tried" narrative is just as valuable as the final working solution — it saves future runs from repeating dead ends.
+
+##### Rule 5: Update the Version Header
+Increment the "Last Updated" date in the document header to today's date.
+
+##### Rule 6: New Scripts Go to the File Inventory
+If you created any new `.py` files saved in the memory folder, add them to the Section 9 table with:
+- File name
+- Issuer it was used for (or "Generic" if reusable)
+- Platform pattern it implements
+- Key technique it demonstrates
+
+---
+
+### STEP 4 — Quality Checklist Before Finishing
+
+Before declaring the extraction complete, verify:
+
+- [ ] **Knowledge base was read** at the start (Section 1 decision tree consulted)
+- [ ] **Existing scripts were checked** and reused where applicable (not written from scratch unnecessarily)
+- [ ] **Past failures were avoided** (checked ❌ items in Section 4 for similar platforms)
+- [ ] **Script is generalized** (config block at top, generic logic below)
+- [ ] **Script is named by pattern** (not by company name)
+- [ ] **Script is self-documenting** (module docstring, inline comments, example config)
+- [ ] **Progress saving implemented** (if >50 iterations)
+- [ ] **Useful scripts saved** to the memory folder (not intermediate/test files)
+- [ ] **Knowledge base was updated** (new Section 4.X entry appended with approaches tried + learnings)
+- [ ] **New script added to Section 9** file inventory
+- [ ] **No existing content was deleted or modified** in the knowledge base
+- [ ] **No junk files** were saved to the memory folder
+
+---
+Go through the report  and try to extract all the missing assets for MUTHOOT FINANCE LIMITED. (Assets mentioned in "2 - Asset Gap Report" sheet)
+Domain: 
+Sharing original extraction prompt for context and output structure:
+
+"Extract addresses from given domain and related URLs, give me in CSV ISSUER_ID , value for all rows Issuer ID - ,  ISSUER_NAME -  for all rows and other columns being FACILITY_NAME FACILITY_ADDRESS CITY STATE POSTAL_CODE FACILITY_REGION LATITUDE LONGITUDE FACILITY_CONTACT_NUMBER RELEVANT_URL BUSINESS_ACTIVITY. Also in case of foreign language data, make sure to transliterate all values to English. 
+
+Domain: "
+
+(Post execution, also provide a summary stating how much time was spent in execution (both with and without human interaction/intervention) along with how many tokens were used, and if extraction memory reduced/had no effect/increased token usage for the task assigned)
