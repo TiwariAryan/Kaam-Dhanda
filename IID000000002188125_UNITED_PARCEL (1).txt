@@ -1,0 +1,15 @@
+IID000000002188125	UNITED PARCEL SERVICE, INC.
+
+https://locations.ups.com/us/en/
+https://locations.theupsstore.com/
+https://www.ups.com/us/en/supplychain/tools/global-directory
+https://www.ups.com/us/en/healthcare/global-network
+https://investors.ups.com/
+https://investors.ups.com/sec-filings/all-sec-filings/content/0001628280-26-008432/0001628280-26-008432.pdf
+
+
+Straive ACWI
+IID000000002141568	ASUSTEK COMPUTER INCORPORATION	1000	https://www.asus.com/in/microsite/shop-near-me/
+IID000000002141568	ASUSTEK COMPUTER INCORPORATION	2	https://www.asus.com/us/About_ASUS/Facilities-Branches/
+
+IID000000002921087	HAIDILAO INTERNATIONAL HOLDING LTD.	1300	https://www.haidilao.com/serve/storeSearch
